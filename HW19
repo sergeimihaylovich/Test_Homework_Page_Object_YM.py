@@ -1,0 +1,113 @@
+import unittest
+
+from parameterized import parameterized
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
+
+
+class PageObject:
+    pass
+
+
+class YMLoginPage(PageObject):
+    def __init__(self, driver):
+        self.login_field_element_id = None
+        self.wrong_message_id = None
+        self.login_field_element = None
+        self.driver = driver
+        self.setLocators()
+        self.setWebdriver(driver)
+
+    def setWebdriver(self, driver):
+        self.driver = driver
+
+    def setLocators(self):
+        self.login_field_element_id = 'passp-field-login'
+        self.wrong_message_id = 'field:input-login:hint'
+        self.submit_button_element = 'passp:sign-in'
+
+    def login(self, login_name: str, By=None):
+        self.login_field_element = self.driver.find_element(By.ID, self.login_field_id)
+        self.login_field_element.send_keys(login_name)
+        self.submit_button_element = self.driver.find_element(By.ID, self.submit_button_id)
+        self.submit_button_element.click()
+
+    def assert_login(self, expected_text: str):
+        self.assertEqual(self.expected_url, self.current_url())
+        self.assertIn(expected_text, self.wrong_message())
+
+    def wrong_message(self, By=None):
+        self.wrong_message_element = self.driver.find_element(By.ID, self.wrong_message_id)
+        WebDriverWait().until(EC.visibility_of(self.wrong_message_element.text))
+        return self.wrong_message_element.text
+
+    def current_url(self):
+        return self.driver.current_url
+
+
+class TestYandexAccountNegativeLogins(unittest.TestCase):
+    def setUp(self):
+        self.setWebdriver()
+        self.webdriverSetUp()
+        self.setDesiredCapabilities()
+        self.pageUrls()
+        self.setTestsParameters()
+        self.blSetUp()
+
+    def setWebdriver(self, webdriver=None):
+        self.driver = webdriver.Chrome()
+
+    def webdriverSetUp(self):
+        self.timeout = 5
+        self.driver.maximize_window()
+        self.driver.implicitly_wait(self.timeout)
+
+    def pageUrls(self):
+        self.initialSetUp()
+        self.webDriverSetUp()
+
+    def setDesiredCapabilities(self):
+        self.invalid_login = 'invalid-account-123-123'
+        self.empty_login = ''
+        self.correct_symbol = 'q'
+        self.long_login = 'qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq'
+        self.expected_invalid_login_text = 'Нет такого аккаунта'
+        self.expected_empty_login_text = 'Логин не указан'
+        self.expected_not_suitable_login_text = 'Такой логин не подойдет'
+
+    def blSetup(self):
+        self.long_page = YMLoginPage(self.driver)
+
+    def setTestsParameters(self):
+        self.setLocators()
+        self.setDesiredCapabilities()
+
+    @staticmethod
+    def get_wrong_symbols() -> list:
+        return [';', ':', '!', '(', ')']
+
+    def tearDown(self):
+        self.driver.quit()
+
+    def test_01_yandex_account_invalid_login(self):
+        self.login_page.login(self.invalid_login)
+        self.login_page.assert_login(self.expected_invalid_login_text)
+
+    def test_02_yandex_account_empty_login(self):
+        self.login_page.login(self.empty_login)
+        self.login_page.assert_login(self.expected_empty_login_text)
+
+    @parameterized.expand(get_wrong_symbols())
+    def test_03_yandex_account_wrong_symbol_login(self, wrong_symbol: str) -> None:
+        self.login_action(wrong_symbol)
+        self.assert_login(self.expected_not_suitable_login_text)
+
+    @parameterized.expand(get_wrong_symbols())
+    def test_04_yandex_account_login_with_wrong_symbol(self, wrong_symbol: str) -> None:
+        self.login_action(self.correct_symbol + wrong_symbol)
+        self.assert_login(self.expected_not_suitable_login_text)
+
+    def test_05_yandex_account_long_login(self):
+        self.login_action(self.long_login)
+        self.assert_login(self.expected_not_suitable_login_text)
